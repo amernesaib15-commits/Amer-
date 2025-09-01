@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منصة المهام اليومية</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    body {
+      font-family: 'Cairo', sans-serif;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center">
+
+  <!-- Main Container -->
+  <div class="bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-4xl my-8">
+    
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <h1 class="text-4xl md:text-5xl font-extrabold text-blue-400">منصة المهام اليومية</h1>
+      <p class="text-gray-400 mt-2 text-lg">أنجز مهام بسيطة واكسب أرباحاً يومية.</p>
+    </header>
+    
+    <!-- Navigation Tabs -->
+    <nav class="flex justify-around bg-gray-700 p-2 rounded-xl mb-8">
+      <button id="dashboard-tab" class="tab-button w-1/4 py-3 rounded-lg font-bold transition-all duration-300 bg-blue-500 text-white shadow-lg">الرئيسية</button>
+      <button id="tasks-tab" class="tab-button w-1/4 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-600">المهام</button>
+      <button id="deposit-tab" class="tab-button w-1/4 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-600">إيداع</button>
+      <button id="withdraw-tab" class="tab-button w-1/4 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-600">سحب</button>
+      <button id="referral-tab" class="tab-button w-1/4 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-600">دعوة الأصدقاء</button>
+    </nav>
+    
+    <!-- Main Content Area -->
+    <div id="content-area">
+
+      <!-- Dashboard View -->
+      <div id="dashboard-view" class="tab-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="bg-gray-700 p-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105">
+            <h3 class="text-2xl font-semibold text-blue-400 mb-2">رصيد الحساب</h3>
+            <p class="text-5xl font-extrabold text-white" id="balance-display">$0.00</p>
+          </div>
+          <div class="bg-gray-700 p-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105">
+            <h3 class="text-2xl font-semibold text-blue-400 mb-2">مهام اليوم</h3>
+            <p class="text-5xl font-extrabold text-white" id="tasks-completed-display">0/3</p>
+          </div>
+        </div>
+        
+        <!-- Level Progress Section -->
+        <div class="bg-gray-700 p-6 rounded-xl shadow-lg mt-6 transform transition-transform duration-300 hover:scale-[1.01]">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-semibold text-blue-400">مستواك الحالي: <span id="level-display" class="text-white">1</span></h3>
+                <span class="text-sm text-gray-400"><span id="level-progress-display">0</span>/<span id="level-max-progress">3</span></span>
+            </div>
+            <div class="w-full bg-gray-600 rounded-full h-2.5">
+                <div id="level-progress-bar" class="bg-green-400 h-2.5 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- Tasks View -->
+      <div id="tasks-view" class="tab-content hidden">
+        <h2 class="text-3xl font-bold text-center mb-6">مهام اليوم</h2>
+        <ul id="tasks-list" class="space-y-4">
+          <!-- Tasks will be dynamically generated here -->
+        </ul>
+      </div>
+
+      <!-- Deposit View -->
+      <div id="deposit-view" class="tab-content hidden">
+        <h2 class="text-3xl font-bold text-center mb-6">إيداع</h2>
+        <div class="bg-gray-700 p-6 rounded-xl shadow-lg">
+          <p class="text-gray-400 mb-4">أدخل المبلغ المراد إيداعه (بالدولار الأمريكي).</p>
+          <input type="number" id="deposit-amount-input" class="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="مثال: 50.00">
+          <button id="deposit-button" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105 shadow-md">تأكيد الإيداع</button>
+        </div>
+      </div>
+      
+      <!-- Withdraw View -->
+      <div id="withdraw-view" class="tab-content hidden">
+        <h2 class="text-3xl font-bold text-center mb-6">سحب</h2>
+        <div class="bg-gray-700 p-6 rounded-xl shadow-lg">
+          <p class="text-gray-400 mb-4">أدخل المبلغ المراد سحبه (بالدولار الأمريكي).</p>
+          <input type="number" id="withdraw-amount-input" class="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="مثال: 25.00">
+          <button id="withdraw-button" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105 shadow-md">تأكيد السحب</button>
+        </div>
+      </div>
+
+      <!-- Referral View -->
+      <div id="referral-view" class="tab-content hidden">
+        <h2 class="text-3xl font-bold text-center mb-6">دعوة الأصدقاء</h2>
+        <div class="bg-gray-700 p-6 rounded-xl shadow-lg text-center">
+          <p class="text-gray-400 mb-4">شارك هذا الرابط مع أصدقائك للحصول على مكافآت!</p>
+          <div class="flex items-center justify-between bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <input type="text" id="referral-link" readonly class="w-full bg-transparent text-white focus:outline-none text-sm md:text-base" value="https://your-platform.com/invite?ref=USER_ID_PLACEHOLDER">
+            <button id="copy-referral-button" class="text-blue-400 hover:text-blue-300 font-bold transition-colors duration-200 ml-4">نسخ</button>
+          </div>
+          <div class="bg-gray-800 p-4 rounded-lg mt-6">
+            <h3 class="text-xl font-semibold text-blue-400">أرباح الإحالات</h3>
+            <p class="text-4xl font-extrabold mt-1" id="referral-earnings">$0.00</p>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- Message Modal -->
+    <div id="message-modal" class="modal">
+      <div class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform duration-300 scale-95">
+        <p id="modal-message" class="text-white text-lg font-semibold mb-4"></p>
+        <button id="close-modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300">
+          حسناً
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants and variables
+    const TABS = ['dashboard', 'tasks', 'deposit', 'withdraw', 'referral'];
+    const tabs = TABS.reduce((acc, tab) => {
+      acc[tab] = {
+        button: document.getElementById(`${tab}-tab`),
+        view: document.getElementById(`${tab}-view`),
+      };
+      return acc;
+    }, {});
+    
+    const TASKS_PER_LEVEL = 3; // عدد المهام المطلوبة للانتقال للمستوى التالي
+
+    // UI elements
+    const balanceDisplay = document.getElementById('balance-display');
+    const tasksCompletedDisplay = document.getElementById('tasks-completed-display');
+    const tasksList = document.getElementById('tasks-list');
+    const depositAmountInput = document.getElementById('deposit-amount-input');
+    const depositButton = document.getElementById('deposit-button');
+    const withdrawAmountInput = document.getElementById('withdraw-amount-input');
+    const withdrawButton = document.getElementById('withdraw-button');
+    const referralLinkInput = document.getElementById('referral-link');
+    const copyReferralButton = document.getElementById('copy-referral-button');
+    const referralEarningsDisplay = document.getElementById('referral-earnings');
+    const messageModal = document.getElementById('message-modal');
+    const modalMessage = document.getElementById('modal-message');
+    const closeModalButton = document.getElementById('close-modal-button');
+    const levelDisplay = document.getElementById('level-display');
+    const levelProgressDisplay = document.getElementById('level-progress-display');
+    const levelMaxProgress = document.getElementById('level-max-progress');
+    const levelProgressBar = document.getElementById('level-progress-bar');
+
+
+    // Data stored in localStorage
+    const STORAGE_KEY = 'daily_tasks_data';
+    let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+      balance: 0,
+      tasks: {},
+      referralEarnings: 0,
+      level: 1, // إضافة المستوى
+      level_progress: 0, // إضافة تقدم المستوى
+    };
+
+    // Helper functions
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      updateUI();
+    }
+
+    function updateUI() {
+      balanceDisplay.textContent = `$${data.balance.toFixed(2)}`;
+      const completedCount = Object.values(data.tasks).filter(t => t.completed).length;
+      tasksCompletedDisplay.textContent = `${completedCount}/3`;
+      referralEarningsDisplay.textContent = `$${data.referralEarnings.toFixed(2)}`;
+      
+      // Update level display
+      levelDisplay.textContent = data.level;
+      levelProgressDisplay.textContent = data.level_progress;
+      levelMaxProgress.textContent = TASKS_PER_LEVEL;
+      const progressPercentage = (data.level_progress / TASKS_PER_LEVEL) * 100;
+      levelProgressBar.style.width = `${progressPercentage}%`;
+    }
+    
+    function showMessage(message) {
+      modalMessage.textContent = message;
+      messageModal.style.display = 'flex';
+      // Animate modal in
+      setTimeout(() => {
+        messageModal.querySelector('div').classList.remove('scale-95');
+        messageModal.querySelector('div').classList.add('scale-100');
+      }, 50);
+    }
+    
+    closeModalButton.addEventListener('click', () => {
+      // Animate modal out before hiding
+      messageModal.querySelector('div').classList.remove('scale-100');
+      messageModal.querySelector('div').classList.add('scale-95');
+      setTimeout(() => {
+        messageModal.style.display = 'none';
+      }, 300);
+    });
+
+    // Tab switching logic
+    function switchTab(activeTab) {
+      TABS.forEach(tab => {
+        tabs[tab].view.classList.add('hidden');
+        tabs[tab].button.classList.remove('bg-blue-500', 'text-white');
+        tabs[tab].button.classList.add('hover:bg-gray-600', 'text-gray-400');
+      });
+      tabs[activeTab].view.classList.remove('hidden');
+      tabs[activeTab].button.classList.add('bg-blue-500', 'text-white');
+      tabs[activeTab].button.classList.remove('hover:bg-gray-600', 'text-gray-400');
+    }
+
+    TABS.forEach(tabName => {
+      tabs[tabName].button.addEventListener('click', () => switchTab(tabName));
+    });
+
+    // Task generation and management
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const dailyTasks = [
+      { id: 'task1', text: 'شاهد فيديو قصير', reward: 0.10 },
+      { id: 'task2', text: 'أجب على استبيان بسيط', reward: 0.25 },
+      { id: 'task3', text: 'قم بتسجيل الدخول اليومي', reward: 0.05 },
+    ];
+
+    function generateTasks() {
+      // Reset tasks if it's a new day
+      if (localStorage.getItem('last_task_date') !== today) {
+        data.tasks = {};
+        localStorage.setItem('last_task_date', today);
+        saveState();
+      }
+
+      tasksList.innerHTML = '';
+      dailyTasks.forEach(task => {
+        const isCompleted = data.tasks[task.id]?.completed || false;
+        const buttonText = isCompleted ? 'مكتمل' : 'أنجز المهمة';
+        const buttonClasses = isCompleted ? 'bg-green-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700';
+
+        const li = document.createElement('li');
+        li.className = 'bg-gray-700 p-4 rounded-xl shadow-lg flex justify-between items-center transform transition-transform duration-300 hover:scale-[1.02]';
+        li.innerHTML = `
+          <div>
+            <span class="text-lg font-semibold">${task.text}</span>
+            <span class="block text-gray-400 mt-1">${task.reward.toFixed(2)}$</span>
+          </div>
+          <button id="${task.id}-button" class="py-2 px-5 rounded-full font-bold transition-colors duration-300 ${buttonClasses}" ${isCompleted ? 'disabled' : ''}>
+            ${buttonText}
+          </button>
+        `;
+        tasksList.appendChild(li);
+      });
+
+      // Attach event listeners after all tasks are added to the DOM
+      dailyTasks.forEach(task => {
+        const button = document.getElementById(`${task.id}-button`);
+        if (button && !data.tasks[task.id]?.completed) {
+          button.addEventListener('click', () => {
+            data.balance += task.reward;
+            data.tasks[task.id] = { completed: true };
+            data.level_progress += 1; // زيادة تقدم المستوى
+            
+            // تحقق من الانتقال إلى المستوى التالي
+            if (data.level_progress >= TASKS_PER_LEVEL) {
+              data.level += 1;
+              data.level_progress = 0;
+              showMessage(`مبروك! لقد وصلت إلى المستوى ${data.level}!`);
+            } else {
+              showMessage(`أحسنت! لقد ربحت ${task.reward.toFixed(2)}$`);
+            }
+            
+            saveState();
+            generateTasks(); // Re-render tasks to show as completed
+          });
+        }
+      });
+    }
+
+    // Deposit functionality
+    depositButton.addEventListener('click', () => {
+      const amount = parseFloat(depositAmountInput.value);
+      if (amount > 0) {
+        data.balance += amount;
+        saveState();
+        showMessage(`تم إيداع ${amount.toFixed(2)}$ بنجاح.`);
+        depositAmountInput.value = '';
+      } else {
+        showMessage('الرجاء إدخال مبلغ صحيح.');
+      }
+    });
+
+    // Withdrawal functionality
+    withdrawButton.addEventListener('click', () => {
+      const amount = parseFloat(withdrawAmountInput.value);
+      if (amount > 0 && amount <= data.balance) {
+        data.balance -= amount;
+        saveState();
+        showMessage(`تم سحب ${amount.toFixed(2)}$ بنجاح.`);
+        withdrawAmountInput.value = '';
+      } else if (amount > data.balance) {
+        showMessage('الرصيد غير كافٍ.');
+      } else {
+        showMessage('الرجاء إدخال مبلغ صحيح.');
+      }
+    });
+
+    // Referral link functionality
+    copyReferralButton.addEventListener('click', () => {
+      // Use execCommand for broader compatibility within iframes
+      const referralLink = referralLinkInput.value;
+      const tempInput = document.createElement('input');
+      document.body.appendChild(tempInput);
+      tempInput.value = referralLink;
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      showMessage('تم نسخ الرابط!');
+    });
+
+    // Initial load
+    updateUI();
+    generateTasks();
+  </script>
+
+</body>
+</html>
