@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة الذكاء الاصطناعي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .modal-content {
+            animation: slideIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .ai-icon-pulse {
+            animation: pulse 2s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); filter: brightness(100%); }
+            50% { transform: scale(1.1); filter: brightness(150%); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+
+<div id="main-app" class="p-4 md:p-8 max-w-4xl mx-auto">
+    
+    <div id="loading-screen" class="fixed inset-0 bg-gray-900 flex justify-center items-center z-50">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p class="text-white text-xl font-bold">جار التحميل...</p>
+        </div>
+    </div>
+
+    <div id="auth-view" class="flex flex-col items-center justify-center min-h-screen">
+      <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full">
+        <h1 class="text-3xl font-extrabold text-center mb-6 text-blue-400">منصة الذكاء الاصطناعي</h1>
+        <div class="flex items-center justify-center mb-6">
+            <svg class="w-16 h-16 text-white ai-icon-pulse" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM12 6C9.79 6 8 7.79 8 10C8 12.21 9.79 14 12 14C14.21 14 16 12.21 16 10C16 7.79 14.21 6 12 6ZM12 18C10.67 18 8 16.67 8 15C8 13.33 9.33 12 12 12C14.67 12 16 13.33 16 15C16 16.67 13.33 18 12 18Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <input type="email" id="email-input" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white mb-4" placeholder="البريد الإلكتروني">
+        <input type="password" id="password-input" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white mb-4" placeholder="كلمة المرور">
+        <div id="referral-container" class="mb-4 hidden">
+            <input type="text" id="referral-input" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="رابط الدعوة (اختياري)">
+        </div>
+        <button id="login-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105 mb-2">
+          تسجيل الدخول
+        </button>
+        <button id="register-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105 hidden">
+          إنشاء حساب
+        </button>
+        <button id="toggle-auth-button" class="mt-4 text-center text-gray-400 hover:text-white transition-colors duration-300">
+          ليس لديك حساب؟ قم بإنشاء واحد.
+        </button>
+      </div>
+    </div>
+
+    <div id="dashboard-view" class="hidden">
+      <nav class="bg-gray-800 rounded-2xl p-4 shadow-lg mb-6 flex justify-between items-center">
+        <button id="logout-button" class="bg-red-600 hover:bg-red-700 text-white text-sm md:text-base font-bold py-2 px-4 rounded-full transition-colors duration-300">تسجيل الخروج</button>
+        <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg md:text-xl">مرحباً، <span id="user-display-name">...</span></span>
+        </div>
+      </nav>
+
+      <div class="bg-gray-800 rounded-2xl p-6 shadow-2xl text-center mb-6">
+        <h2 class="text-2xl font-bold text-blue-400">الرصيد الحالي</h2>
+        <p class="text-4xl md:text-5xl font-extrabold mt-2"><span id="user-balance">0.00</span>$</p>
+        <p class="text-sm text-gray-400 mt-2">مستوى العضوية: <span id="membership-level">...</span></p>
+        <p class="text-sm text-gray-400 mt-1">المكافأة اليومية: <span id="daily-bonus-amount">0.00</span>$</p>
+        <p class="text-sm text-gray-400 mt-1">معرّف المستخدم: <span id="user-id-display">...</span></p>
+      </div>
+
+      <nav class="flex justify-around bg-gray-800 p-2 rounded-xl shadow-lg mb-6">
+        <button id="tasks-tab" class="tab-button w-1/5 py-3 rounded-lg font-bold transition-all duration-300 bg-blue-500 text-white shadow-lg">المهام</button>
+        <button id="deposit-tab" class="tab-button w-1/5 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-700">شحن الحساب</button>
+        <button id="withdraw-tab" class="tab-button w-1/5 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-700">سحب الأموال</button>
+        <button id="invite-tab" class="tab-button w-1/5 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-700">دعوة الأصدقاء</button>
+        <button id="support-tab" class="tab-button w-1/5 py-3 rounded-lg font-bold transition-all duration-300 hover:bg-gray-700">خدمة العملاء</button>
+      </nav>
+
+      <div id="tab-content-container">
+
+        <div id="tasks-content" class="tab-content">
+          <h2 class="text-3xl font-bold text-center mb-6 text-blue-400">المهام المتاحة</h2>
+          <div id="tasks-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <p class="text-center text-gray-400 col-span-full">تحميل المهام...</p>
+          </div>
+        </div>
+
+        <div id="deposit-content" class="tab-content hidden">
+          <h2 class="text-3xl font-bold text-center mb-6 text-blue-400">شحن الحساب</h2>
+          <div class="bg-gray-800 p-6 rounded-xl shadow-lg text-center">
+            <p class="text-lg text-gray-300 mb-4">قم بإرسال مبلغ الإيداع إلى العنوان التالي. سيتم تحديث رصيدك تلقائياً.</p>
+            <div class="bg-gray-700 p-4 rounded-lg break-words flex items-center justify-between">
+              <span id="deposit-address" class="text-sm md:text-base font-mono">0xAb4415A6Ed0a199CBF68E06a65A4E5d379B0Cb68</span>
+              <button id="copy-deposit-address" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-colors duration-300 ml-2">نسخ</button>
+            </div>
+            <p class="text-lg font-bold mt-6 mb-4">اختر خطة العضوية التي تريدها:</p>
+            <ul id="memberships-list" class="space-y-4 text-right">
+              </ul>
+          </div>
+        </div>
+        
+        <div id="withdraw-content" class="tab-content hidden">
+          <h2 class="text-3xl font-bold text-center mb-6 text-blue-400">سحب الأموال</h2>
+          <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+            <p class="text-lg text-gray-300 mb-4 text-center">الحد الأدنى للسحب هو 5 دولارات.</p>
+            <input type="number" id="withdraw-amount" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white mb-4" placeholder="المبلغ المراد سحبه">
+            <input type="text" id="withdraw-address" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white mb-4" placeholder="عنوان المحفظة">
+            <button id="withdraw-button" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105">
+              طلب السحب
+            </button>
+          </div>
+        </div>
+
+        <div id="invite-content" class="tab-content hidden">
+          <h2 class="text-3xl font-bold text-center mb-6 text-blue-400">دعوة الأصدقاء</h2>
+          <div class="bg-gray-800 p-6 rounded-xl shadow-lg text-center">
+            <p class="text-lg text-gray-300 mb-4">ادعُ أصدقاءك واكسب مكافأة عند تسجيلهم.</p>
+            <div class="bg-gray-700 p-4 rounded-lg break-words mb-4 flex items-center justify-between">
+              <span id="referral-link" class="text-sm md:text-base font-mono">...</span>
+              <button id="copy-link-button" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-colors duration-300 ml-2">نسخ</button>
+            </div>
+            <p class="text-sm text-gray-400">شارك هذا الرابط مع أصدقائك للحصول على مكافأة.</p>
+          </div>
+        </div>
+
+        <div id="support-content" class="tab-content hidden">
+            <h2 class="text-3xl font-bold text-center mb-6 text-blue-400">خدمة العملاء</h2>
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+              <p class="text-lg text-gray-300 mb-4">أرسل رسالة دعم وسنتواصل معك قريباً.</p>
+              <textarea id="support-message" class="w-full p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white mb-4 h-32" placeholder="اكتب رسالتك هنا..."></textarea>
+              <button id="send-support-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-full transition-colors duration-300 transform hover:scale-105">
+                إرسال الرسالة
+              </button>
+            </div>
+        </div>
+
+      </div>
+    </div>
+</div>
+
+<div id="message-modal" class="modal">
+    <div id="modal-content" class="bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
+      <p id="modal-message" class="text-white text-lg font-semibold mb-4"></p>
+      <button id="close-modal-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300">
+        حسناً
+      </button>
+    </div>
+</div>
+
+<script type="module">
+    // Firebase Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection, query, where, updateDoc, serverTimestamp, getDocs, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    setLogLevel('debug');
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAamXvGt52NwqseXQygauthDomain",
+      authDomain: "hogo-58894.firebaseapp.com",
+      projectId: "hogo-58894",
+      storageBucket: "hogo-58894.appspot.com",
+      messagingSenderId: "949470877454",
+      appId: "1:949470877454:web:e36722d3b7e7c8282e666f",
+      measurementId: "G-J24EPG1G4F"
+    };
+
+    const appId = firebaseConfig.appId;
+
+    // Firebase Initialization
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let userProfileRef = null;
+    let unsubscribeUser = null;
+    let unsubscribeTasks = null;
+
+    // UI elements
+    const loadingScreen = document.getElementById('loading-screen');
+    const authView = document.getElementById('auth-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const emailInput = document.getElementById('email-input');
+    const passwordInput = document.getElementById('password-input');
+    const loginButton = document.getElementById('login-button');
+    const registerButton = document.getElementById('register-button');
+    const toggleAuthButton = document.getElementById('toggle-auth-button');
+    const referralInput = document.getElementById('referral-input');
+    const referralContainer = document.getElementById('referral-container');
+    const logoutButton = document.getElementById('logout-button');
+    const userDisplayName = document.getElementById('user-display-name');
+    const userBalanceSpan = document.getElementById('user-balance');
+    const userMembershipLevelSpan = document.getElementById('membership-level');
+    const userDailyBonusAmountSpan = document.getElementById('daily-bonus-amount');
+    const userIdDisplay = document.getElementById('user-id-display');
+    const tasksList = document.getElementById('tasks-list');
+    const copyDepositAddressButton = document.getElementById('copy-deposit-address');
+    const withdrawAmountInput = document.getElementById('withdraw-amount');
+    const withdrawAddressInput = document.getElementById('withdraw-address');
+    const withdrawButton = document.getElementById('withdraw-button');
+    const referralLinkSpan = document.getElementById('referral-link');
+    const copyLinkButton = document.getElementById('copy-link-button');
+    const supportMessageTextarea = document.getElementById('support-message');
+    const sendSupportButton = document.getElementById('send-support-button');
+
+    const messageModal = document.getElementById('message-modal');
+    const modalMessage = document.getElementById('modal-message');
+    const closeModalButton = document.getElementById('close-modal-button');
+    const modalContent = document.getElementById('modal-content');
+    
+    // Tab elements
+    const tabs = {
+      tasks: document.getElementById('tasks-content'),
+      deposit: document.getElementById('deposit-content'),
+      withdraw: document.getElementById('withdraw-content'),
+      invite: document.getElementById('invite-content'),
+      support: document.getElementById('support-content')
+    };
+    const tabButtons = {
+      tasks: document.getElementById('tasks-tab'),
+      deposit: document.getElementById('deposit-tab'),
+      withdraw: document.getElementById('withdraw-tab'),
+      invite: document.getElementById('invite-tab'),
+      support: document.getElementById('support-tab')
+    };
+
+    // Hardcoded memberships and daily bonuses
+    const MEMBERSHIPS = {
+        free: { price: 0, dailyBonus: 0, name: 'مجانية' },
+        vip1: { price: 10, dailyBonus: 0.5, name: 'VIP 1' },
+        vip2: { price: 20, dailyBonus: 1, name: 'VIP 2' },
+        vip3: { price: 35, dailyBonus: 1.5, name: 'VIP 3' },
+        vip4: { price: 80, dailyBonus: 5, name: 'VIP 4' }
+    };
+
+    // Helper Functions
+    function showMessage(message) {
+        modalMessage.textContent = message;
+        messageModal.style.display = 'flex';
+        modalContent.classList.remove('scale-95');
+        modalContent.classList.add('scale-100');
+    }
+
+    closeModalButton.addEventListener('click', () => {
+        modalContent.classList.remove('scale-100');
+        modalContent.classList.add('scale-95');
+        setTimeout(() => {
+            messageModal.style.display = 'none';
+        }, 300);
+    });
+
+    function switchTab(activeTab) {
+        Object.values(tabs).forEach(tab => tab.classList.add('hidden'));
+        Object.values(tabButtons).forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white', 'shadow-lg');
+            btn.classList.add('hover:bg-gray-700');
+        });
+        tabs[activeTab].classList.remove('hidden');
+        tabButtons[activeTab].classList.add('bg-blue-500', 'text-white', 'shadow-lg');
+        tabButtons[activeTab].classList.remove('hover:bg-gray-700');
+    }
+
+    Object.keys(tabs).forEach(tabName => {
+        if (tabButtons[tabName]) {
+            tabButtons[tabName].addEventListener('click', () => switchTab(tabName));
+        }
+    });
+
+    // Firestore Listeners and Actions
+    async function setupDashboardListeners(user) {
+        if (!user) {
+            console.error("User object is null, cannot set up listeners.");
+            return;
+        }
+
+        const userId = user.uid;
+        userIdDisplay.textContent = userId;
+        userProfileRef = doc(db, `/artifacts/${appId}/users/${userId}/private_data/user_profile`);
+        
+        // Listen to user data changes
+        unsubscribeUser = onSnapshot(userProfileRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.email) {
+                    userDisplayName.textContent = data.email.split('@')[0];
+                } else {
+                    userDisplayName.textContent = 'مستخدم';
+                }
+                userBalanceSpan.textContent = data.balance ? data.balance.toFixed(2) : '0.00';
+                userMembershipLevelSpan.textContent = MEMBERSHIPS[data.membership_level] ? MEMBERSHIPS[data.membership_level].name : 'غير معروف';
+                userDailyBonusAmountSpan.textContent = MEMBERSHIPS[data.membership_level] ? MEMBERSHIPS[data.membership_level].dailyBonus.toFixed(2) : '0.00';
+                checkDailyBonus(data);
+                
+                // Populate memberships list
+                const membershipsList = document.getElementById('memberships-list');
+                membershipsList.innerHTML = '';
+                Object.keys(MEMBERSHIPS).filter(key => key !== 'free').forEach(key => {
+                    const membership = MEMBERSHIPS[key];
+                    const li = document.createElement('li');
+                    li.className = `p-4 rounded-xl shadow-lg flex justify-between items-center ${data.membership_level === key ? 'bg-yellow-500 text-black font-bold' : 'bg-gray-700'}`;
+                    li.innerHTML = `
+                        <div>
+                            <span class="text-lg">${membership.name}</span>
+                            <span class="block text-sm ${data.membership_level === key ? 'text-gray-800' : 'text-gray-400'}">مكافأة يومية: ${membership.dailyBonus.toFixed(2)}$</span>
+                        </div>
+                        <span class="text-xl">${membership.price}$</span>
+                    `;
+                    membershipsList.appendChild(li);
+                });
+            }
+        }, (error) => {
+            console.error("Firestore onSnapshot userProfileRef error:", error);
+            showMessage("خطأ في جلب بيانات المستخدم. يرجى التحقق من الأذونات.");
+        });
+
+        // Listen to public tasks
+        unsubscribeTasks = onSnapshot(collection(db, `/artifacts/${appId}/public/data/tasks`), async (querySnapshot) => {
+            tasksList.innerHTML = '';
+            try {
+                if (querySnapshot.empty) {
+                    tasksList.innerHTML = '<p class="text-center text-gray-400 col-span-full">لا توجد مهام متاحة حاليًا.</p>';
+                } else {
+                    const userDocSnap = await getDoc(userProfileRef);
+                    const userCompletedTasks = userDocSnap.exists() && userDocSnap.data().completed_tasks ? userDocSnap.data().completed_tasks : {};
+                    const userMembership = userDocSnap.exists() && userDocSnap.data().membership_level ? userDocSnap.data().membership_level : 'free';
+
+                    querySnapshot.forEach((doc) => {
+                        const task = doc.data();
+                        const taskId = doc.id;
+                        const isCompleted = userCompletedTasks[taskId];
+                        const isPremium = task.membership === 'premium';
+                        const isAllowed = !isPremium || userMembership !== 'free';
+
+                        const div = document.createElement('div');
+                        div.className = `bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center ${isCompleted ? 'opacity-50' : ''}`;
+                        div.innerHTML = `
+                            <img src="${task.image}" alt="${task.title}" class="w-32 h-32 object-cover rounded-full mb-4 border-4 border-blue-500">
+                            <h3 class="text-xl font-bold mb-2">${task.title}</h3>
+                            <p class="text-yellow-400 font-extrabold text-lg mb-4">${task.reward.toFixed(2)}$</p>
+                            ${isPremium ? `<span class="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded-full mb-2">عضوية مدفوعة</span>` : ''}
+                            <button id="task-button-${taskId}" class="w-full py-3 rounded-full font-bold transition-colors duration-300 transform hover:scale-105 ${isCompleted ? 'bg-gray-600 cursor-not-allowed' : isAllowed ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}" ${!isAllowed || isCompleted ? 'disabled' : ''}>
+                                ${isCompleted ? 'تم الإنجاز' : isAllowed ? 'إنجاز المهمة' : 'ترقية العضوية'}
+                            </button>
+                        `;
+                        tasksList.appendChild(div);
+
+                        if (isAllowed && !isCompleted) {
+                            document.getElementById(`task-button-${taskId}`).addEventListener('click', async () => {
+                                try {
+                                    const taskRef = doc(db, `/artifacts/${appId}/public/data/tasks/${taskId}`);
+                                    const taskDoc = await getDoc(taskRef);
+                                    const taskData = taskDoc.data();
+                                    await updateDoc(userProfileRef, {
+                                        balance: increment(taskData.reward),
+                                        [`completed_tasks.${taskId}`]: true
+                                    });
+                                    showMessage(`تهانينا! لقد حصلت على ${taskData.reward.toFixed(2)}$`);
+                                } catch (e) {
+                                    console.error("Error completing task:", e);
+                                    showMessage("فشل في إكمال المهمة. قد لا تملك الأذونات الكافية.");
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Firestore onSnapshot tasks error:", error);
+                showMessage("خطأ في جلب المهام المتاحة. يرجى التحقق من الأذونات.");
+            }
+        });
+    }
+
+    async function checkDailyBonus(userData) {
+        if (!userData || !userData.membership_level || userData.membership_level === 'free') {
+            return;
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const lastBonusDate = userData.last_daily_bonus_date ? userData.last_daily_bonus_date.toDate().toISOString().split('T')[0] : null;
+
+        if (lastBonusDate !== today) {
+            const dailyBonus = MEMBERSHIPS[userData.membership_level].dailyBonus;
+            try {
+                await updateDoc(userProfileRef, {
+                    balance: increment(dailyBonus),
+                    last_daily_bonus_date: new Date()
+                });
+                showMessage(`تهانينا! لقد حصلت على مكافأتك اليومية: ${dailyBonus.toFixed(2)}$`);
+            } catch (error) {
+                console.error("Error updating daily bonus:", error);
+                showMessage("فشل في الحصول على المكافأة اليومية. يرجى المحاولة لاحقاً.");
+            }
+        }
+    }
+    
+    // Auth State Observer
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            loadingScreen.classList.add('hidden');
+            authView.classList.add('hidden');
+            dashboardView.classList.remove('hidden');
+            await setupDashboardListeners(user);
+            referralLinkSpan.textContent = `${window.location.origin}${window.location.pathname}?ref=${user.uid}`;
+        } else {
+            currentUser = null;
+            if (unsubscribeUser) unsubscribeUser();
+            if (unsubscribeTasks) unsubscribeTasks();
+            loadingScreen.classList.add('hidden');
+            authView.classList.remove('hidden');
+            dashboardView.classList.add('hidden');
+            // Check for referral code in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('ref')) {
+                referralContainer.classList.remove('hidden');
+                referralInput.value = urlParams.get('ref');
+            }
+        }
+    });
+
+    // Initial anonymous sign-in
+    try {
+        if (initialAuthToken) {
+            await signInWithCustomToken(auth, initialAuthToken);
+        } else {
+            await signInAnonymously(auth);
+        }
+    } catch (error) {
+        console.error("Initial sign-in failed:", error);
+        showMessage("فشل الاتصال بخدمة المصادقة. يرجى المحاولة مرة أخرى.");
+    }
+
+    // Auth Actions
+    loginButton.addEventListener('click', async () => {
+        try {
+            await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+            showMessage('تم تسجيل الدخول بنجاح.');
+        } catch (error) {
+            showMessage('خطأ في تسجيل الدخول. تأكد من صحة البريد وكلمة المرور.');
+            console.error("Login Error:", error);
+        }
+    });
+
+    registerButton.addEventListener('click', async () => {
+        try {
+            const result = await createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+            const user = result.user;
+            const referralId = referralInput.value.trim();
+            const initialBalance = referralId ? 1 : 0;
+            const completedTasks = {};
+
+            await setDoc(doc(db, `/artifacts/${appId}/users/${user.uid}/private_data/user_profile`), {
+                email: user.email,
+                balance: initialBalance,
+                completed_tasks: completedTasks,
+                membership_level: 'free',
+                last_daily_bonus_date: null,
+                is_admin: false,
+            });
+
+            if (referralId) {
+                const referrerProfileRef = doc(db, `/artifacts/${appId}/users/${referralId}/private_data/user_profile`);
+                const referrerDoc = await getDoc(referrerProfileRef);
+                if (referrerDoc.exists()) {
+                    await updateDoc(referrerProfileRef, {
+                        balance: increment(1)
+                    });
+                }
+            }
+
+            showMessage('تم إنشاء الحساب بنجاح. لقد حصلت على 1$ مكافأة تسجيل.');
+        } catch (error) {
+            showMessage('خطأ في إنشاء الحساب. قد يكون البريد الإلكتروني مستخدماً بالفعل أو كلمة المرور ضعيفة.');
+            console.error("Register Error:", error);
+        }
+    });
+
+    logoutButton.addEventListener('click', async () => {
+        await signOut(auth);
+        showMessage('تم تسجيل الخروج.');
+    });
+
+    toggleAuthButton.addEventListener('click', () => {
+        if (loginButton.classList.contains('hidden')) {
+            loginButton.classList.remove('hidden');
+            registerButton.classList.add('hidden');
+            referralContainer.classList.add('hidden');
+            toggleAuthButton.textContent = 'ليس لديك حساب؟ قم بإنشاء واحد.';
+        } else {
+            loginButton.classList.add('hidden');
+            registerButton.classList.remove('hidden');
+            referralContainer.classList.remove('hidden');
+            toggleAuthButton.textContent = 'لديك حساب بالفعل؟ قم بتسجيل الدخول.';
+        }
+    });
+
+    // Other Actions
+    copyDepositAddressButton.addEventListener('click', () => {
+        const address = document.getElementById('deposit-address').textContent;
+        navigator.clipboard.writeText(address).then(() => {
+            showMessage('تم نسخ العنوان.');
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            showMessage('فشل في النسخ.');
+        });
+    });
+
+    copyLinkButton.addEventListener('click', () => {
+      const referralLink = referralLinkSpan.textContent;
+      navigator.clipboard.writeText(referralLink).then(() => {
+        showMessage('تم نسخ رابط الدعوة.');
+      }).catch(err => {
+        console.error('Failed to copy link: ', err);
+        showMessage('فشل في النسخ.');
+      });
+    });
+
+    withdrawButton.addEventListener('click', async () => {
+        const amount = parseFloat(withdrawAmountInput.value);
+        const address = withdrawAddressInput.value.trim();
+
+        if (isNaN(amount) || amount < 5) {
+            showMessage('الحد الأدنى للسحب هو 5 دولارات.');
+            return;
+        }
+
+        if (!address) {
+            showMessage('الرجاء إدخال عنوان محفظة صحيح.');
+            return;
+        }
+
+        const userDoc = await getDoc(userProfileRef);
+        if (!userDoc.exists()) {
+            showMessage('خطأ في بيانات المستخدم. يرجى تسجيل الدخول مرة أخرى.');
+            return;
+        }
+        const userBalance = userDoc.data().balance;
+
+        if (userBalance < amount) {
+            showMessage('رصيدك لا يكفي لإجراء هذا السحب.');
+            return;
+        }
+
+        try {
+            await updateDoc(userProfileRef, { balance: increment(-amount) });
+            const withdrawalRequestsRef = collection(db, `/artifacts/${appId}/public/data/withdrawal_requests`);
+            await addDoc(withdrawalRequestsRef, {
+                userId: currentUser.uid,
+                amount: amount,
+                address: address,
+                timestamp: serverTimestamp()
+            });
+            showMessage('تم إرسال طلب السحب بنجاح. سيتم مراجعته قريباً.');
+            withdrawAmountInput.value = '';
+            withdrawAddressInput.value = '';
+        } catch (error) {
+            console.error("Withdrawal failed:", error);
+            showMessage('فشل في إرسال طلب السحب. الرجاء المحاولة مرة أخرى.');
+        }
+    });
+
+    sendSupportButton.addEventListener('click', async () => {
+        const message = supportMessageTextarea.value.trim();
+        if (message.length > 0) {
+            try {
+                const supportTicketsRef = collection(db, `/artifacts/${appId}/public/data/support_tickets`);
+                await addDoc(supportTicketsRef, {
+                    userId: currentUser.uid,
+                    message: message,
+                    timestamp: serverTimestamp()
+                });
+                showMessage('تم إرسال رسالتك بنجاح. شكراً لك!');
+                supportMessageTextarea.value = '';
+            } catch (error) {
+                console.error("Support message failed:", error);
+                showMessage('فشل في إرسال الرسالة. الرجاء المحاولة مرة أخرى.');
+            }
+        } else {
+            showMessage('الرجاء كتابة رسالة قبل الإرسال.');
+        }
+    });
+
+    // Firestore default tasks and data setup
+    async function setupDefaultData() {
+        try {
+            const tasksCollection = collection(db, `/artifacts/${appId}/public/data/tasks`);
+            const tasksSnapshot = await getDocs(tasksCollection);
+            if (tasksSnapshot.empty) {
+                await addDoc(tasksCollection, {
+                    title: "مهمة تحليل البيانات",
+                    reward: 0.50,
+                    image: "https://placehold.co/400x400/1e90ff/ffffff?text=AI+Task+1",
+                    membership: "free"
+                });
+                await addDoc(tasksCollection, {
+                    title: "مهمة تدريب النماذج",
+                    reward: 1.00,
+                    image: "https://placehold.co/400x400/ff6347/ffffff?text=AI+Task+2",
+                    membership: "free"
+                });
+                await addDoc(tasksCollection, {
+                    title: "مهمة برمجة الروبوت",
+                    reward: 1.50,
+                    image: "https://placehold.co/400x400/32cd32/ffffff?text=AI+Task+3",
+                    membership: "premium"
+                });
+                await addDoc(tasksCollection, {
+                    title: "مهمة تطوير التطبيقات",
+                    reward: 2.00,
+                    image: "https://placehold.co/400x400/8a2be2/ffffff?text=AI+Task+4",
+                    membership: "premium"
+                });
+            }
+        } catch (error) {
+            console.error("Error setting up default data:", error);
+        }
+    }
+    setupDefaultData();
+</script>
+</body>
+</html>
